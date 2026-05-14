@@ -374,30 +374,35 @@ export const useAgentStream = ({
       let localQuery: PartListUnion = query;
 
       if (!options?.isContinuation) {
+        let isSlash = false;
         if (typeof localQuery === 'string') {
           const trimmedQuery = localQuery.trim();
+          void logger?.logMessage(MessageSenderType.USER, trimmedQuery);
 
           if (isSlashCommand(trimmedQuery)) {
+            isSlash = true;
             const slashResult = await handleSlashCommand(trimmedQuery);
             if (slashResult) {
-              if (slashResult.type === 'handled') {
-                return;
-              }
               if (slashResult.type === 'submit_prompt') {
                 localQuery = slashResult.content;
+              } else {
+                return;
               }
-              // schedule_tool is not yet supported in useAgentStream (mirrors handleAtCommand lack of support here)
             }
           }
         }
 
-        const queryText =
-          typeof localQuery === 'string'
-            ? localQuery
-            : partToString(localQuery);
+        if (!isSlash) {
+          const queryText =
+            typeof localQuery === 'string'
+              ? localQuery
+              : partToString(localQuery);
 
-        addItem({ type: MessageType.USER, text: queryText }, timestamp);
-        void logger?.logMessage(MessageSenderType.USER, queryText);
+          addItem({ type: MessageType.USER, text: queryText }, timestamp);
+          if (typeof localQuery !== 'string') {
+            void logger?.logMessage(MessageSenderType.USER, queryText);
+          }
+        }
         startNewPrompt();
       }
 
